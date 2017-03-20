@@ -79,7 +79,7 @@ var chilliLibrary = { revision:'85' , apiVersion:'2.0' } ;
  */
 
 if (!chilliController || !chilliController.host)
-var chilliController = { interval:30 , host:"1.0.0.1" , port:false , ident:'00' , ssl:false , uamService: false };
+var chilliController = { interval:30 , host:"1.0.0.1" , port:false , ident:'00' , ssl:false , uamService: false, uamSecret: 'changeme' };
 
 /* Define clientState numerical code constants  */
 chilliController.stateCodes = { UNKNOWN:-1 , NOT_AUTH:0 , AUTH:1 , AUTH_PENDING:2 , AUTH_SPLASH:3 } ;
@@ -296,7 +296,7 @@ chilliController.logonStep2 = function ( resp ) {
 	    if (!response || response == '') {
 		/* Calculate MD5 CHAP at the client side */
 		var myMD5 = new ChilliMD5();
-		response = myMD5.chap ( chilliController.ident , password , challenge );
+		response = myMD5.chap ( chilliController.ident , password , challenge, chilliController.uamSecret );
 		log ( 'chilliController.logonStep2: Calculating CHAP-Password = ' + response );
 	    }
 
@@ -656,7 +656,15 @@ function ChilliMD5() {
 		return binl2hex(core_md5(str2binl(s), s.length * chrsz));
 	};
 
-	this.chap = function ( hex_ident , str_password , hex_chal ) {
+	this.chap = function ( hex_ident , str_password , hex_chal, uamsecret ) {
+
+        // hex_chal = md5(hex_chal + _uamsecret)
+        // fixed by BOYPT
+		var _sec =  str2hex (uamsecret);
+		var _hex = hex_chal + _sec;
+		var _bin   = hex2binl ( _hex );
+		var md5 = core_md5( _bin , _hex.length * 4);
+		hex_chal = binl2hex( md5 );
 
 		//  Convert everything to hex encoded strings
 		var hex_password =  str2hex ( str_password );
@@ -668,7 +676,7 @@ function ChilliMD5() {
 		var bin   = hex2binl ( hex ) ;
 
 		// Calculate MD5 on binary representation
-		var md5 = core_md5( bin , hex.length * 4 ) ; 
+		var md5 = core_md5( bin , hex.length * 4 );
 
 		return binl2hex( md5 );
 	};
